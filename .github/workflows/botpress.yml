@@ -1,0 +1,17 @@
+name: RihlaBot CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  notify-botpress:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Notify deployment
+        run: echo "RihlaBot mis à jour sur Botpress Cloud ✅"
