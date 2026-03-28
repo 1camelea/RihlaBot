@@ -1,0 +1,378 @@
+{
+  "name": "RihlaBot رحلة — Planificateur Voyage IA Maroc",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rihlabot",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c1bfe5ab-9e46-45df-b7b3-f59a29a86ac0",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-16, 0],
+      "webhookId": "rihlabot-webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "set-destination",
+              "name": "destination",
+              "value": "={{ $json.body.ville1 || $json.body.ville || $json.body.destination || 'Marrakech' }}",
+              "type": "string"
+            },
+            {
+              "id": "set-dates",
+              "name": "dates",
+              "value": "={{ $json.body.dates || $json.body.date_depart || $json.dates || 'non précisé' }}",
+              "type": "string"
+            },
+            {
+              "id": "set-budget",
+              "name": "budget_dh",
+              "value": "={{ $json.body.budget_dh || $json.body.budget || $json.budget_dh || '1000-3000 DH' }}",
+              "type": "string"
+            },
+            {
+              "id": "set-style",
+              "name": "style",
+              "value": "={{ $json.body.style || $json.style || 'Culturel' }}",
+              "type": "string"
+            },
+            {
+              "id": "set-voyageurs",
+              "name": "voyageurs",
+              "value": "={{ $json.body.voyageurs || $json.voyageurs || '2 personnes' }}",
+              "type": "string"
+            },
+            {
+              "id": "set-langue",
+              "name": "langue",
+              "value": "={{ $json.body.langue || $json.langue || 'fr' }}",
+              "type": "string"
+            },
+            {
+              "id": "set-trip-type",
+              "name": "trip_type",
+              "value": "={{ $json.body.trip_type || $json.trip_type || 'destination_unique' }}",
+              "type": "string"
+            },
+            {
+              "id": "set-nb-nuits",
+              "name": "nb_nuits",
+              "value": "={{ $json.body.nb_nuits || $json.nb_nuits || '2 nuits' }}",
+              "type": "string"
+            },
+            {
+              "id": "set-botpress-user",
+              "name": "botpress_user_id",
+              "value": "={{ $json.body.botpress_user_id || $json.botpress_user_id || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "set-received",
+              "name": "received_date",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "dd5bcf71-d247-4158-b6d2-69790f16dc62",
+      "name": "Set Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [208, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer VOTRE_CLE_GROQ_ICI"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Tu es un assistant voyage Maroc. Extrait et retourne UNIQUEMENT ce JSON sans backticks ni texte autour : {\\\"destination\\\":\\\"\\\",\\\"dates\\\":\\\"\\\",\\\"budget_dh\\\":\\\"\\\",\\\"style\\\":\\\"\\\",\\\"voyageurs\\\":\\\"\\\",\\\"nb_nuits\\\":\\\"\\\",\\\"trip_type\\\":\\\"\\\",\\\"langue\\\":\\\"fr\\\"}\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Données reçues : destination={{ $json.destination }}, dates={{ $json.dates }}, budget={{ $json.budget_dh }}, style={{ $json.style }}, voyageurs={{ $json.voyageurs }}, nb_nuits={{ $json.nb_nuits }}, trip_type={{ $json.trip_type }}, langue={{ $json.langue }}\"\n    }\n  ],\n  \"temperature\": 0\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "2b6c2843-4026-41d6-bae7-31438d4d5eb0",
+      "name": "OpenAI Parsing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [432, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mode : Run Once for Each Item\n// Parsing robuste du JSON retourné par le LLM\nconst input = $input.item.json;\n\nlet raw = '';\ntry {\n  raw = input.choices[0].message.content || '{}';\n} catch(e) {\n  raw = JSON.stringify(input);\n}\n\nlet data = {};\ntry {\n  const cleaned = raw.replace(/```json?|```/g, '').trim();\n  data = JSON.parse(cleaned);\n} catch(e) {\n  data = {\n    destination: $('Set Input').item.json.destination || 'Marrakech',\n    dates: $('Set Input').item.json.dates || 'non précisé',\n    budget_dh: $('Set Input').item.json.budget_dh || '1000-3000 DH',\n    style: $('Set Input').item.json.style || 'Culturel',\n    voyageurs: $('Set Input').item.json.voyageurs || '2 personnes',\n    nb_nuits: $('Set Input').item.json.nb_nuits || '2 nuits',\n    trip_type: $('Set Input').item.json.trip_type || 'destination_unique',\n    langue: $('Set Input').item.json.langue || 'fr'\n  };\n}\n\nconst cleanVal = (v) => String(v || '').replace(/[^\\w\\s\\-àâäéèêëîïôùûüç,.:0-9]/gi, '').trim();\n\nreturn {\n  destination: cleanVal(data.destination) || cleanVal($('Set Input').item.json.destination) || 'Marrakech',\n  dates: data.dates || $('Set Input').item.json.dates || 'non précisé',\n  budget_dh: data.budget_dh || $('Set Input').item.json.budget_dh || '1000-3000 DH',\n  style: cleanVal(data.style) || cleanVal($('Set Input').item.json.style) || 'Culturel',\n  voyageurs: data.voyageurs || $('Set Input').item.json.voyageurs || '2 personnes',\n  nb_nuits: data.nb_nuits || $('Set Input').item.json.nb_nuits || '2 nuits',\n  trip_type: data.trip_type || $('Set Input').item.json.trip_type || 'destination_unique',\n  langue: data.langue || $('Set Input').item.json.langue || 'fr',\n  botpress_user_id: $('Set Input').item.json.botpress_user_id || ''\n};"
+      },
+      "id": "2b9ca2e0-6fbc-4a10-b548-f63c31ee01cd",
+      "name": "Code Parse JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [656, 0]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.openweathermap.org/data/2.5/forecast?q={{ $('Code Parse JSON').item.json.destination }},MA&appid=VOTRE_CLE_OPENWEATHER_ICI&units=metric&lang=fr&cnt=8",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "3962e858-f630-4dc6-b5c0-5c9c850c6ae6",
+      "name": "Weather API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [864, 0]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "set-meteo",
+              "name": "meteo_final",
+              "value": "={{ (() => {\n  try {\n    const list = $json.list;\n    if (!list || list.length === 0) return 'Météo non disponible';\n    const item = list[0];\n    const temp = Math.round(item.main.temp);\n    const desc = item.weather[0].description;\n    const humidity = item.main.humidity;\n    return `${temp}°C, ${desc}, humidité ${humidity}%`;\n  } catch(e) {\n    return 'Météo non disponible';\n  }\n})() }}",
+              "type": "string"
+            },
+            {
+              "id": "pass-destination",
+              "name": "destination",
+              "value": "={{ $('Code Parse JSON').item.json.destination }}",
+              "type": "string"
+            },
+            {
+              "id": "pass-dates",
+              "name": "dates",
+              "value": "={{ $('Code Parse JSON').item.json.dates }}",
+              "type": "string"
+            },
+            {
+              "id": "pass-budget",
+              "name": "budget_dh",
+              "value": "={{ $('Code Parse JSON').item.json.budget_dh }}",
+              "type": "string"
+            },
+            {
+              "id": "pass-style",
+              "name": "style",
+              "value": "={{ $('Code Parse JSON').item.json.style }}",
+              "type": "string"
+            },
+            {
+              "id": "pass-voyageurs",
+              "name": "voyageurs",
+              "value": "={{ $('Code Parse JSON').item.json.voyageurs }}",
+              "type": "string"
+            },
+            {
+              "id": "pass-nuits",
+              "name": "nb_nuits",
+              "value": "={{ $('Code Parse JSON').item.json.nb_nuits }}",
+              "type": "string"
+            },
+            {
+              "id": "pass-trip",
+              "name": "trip_type",
+              "value": "={{ $('Code Parse JSON').item.json.trip_type }}",
+              "type": "string"
+            },
+            {
+              "id": "pass-langue",
+              "name": "langue",
+              "value": "={{ $('Code Parse JSON').item.json.langue }}",
+              "type": "string"
+            },
+            {
+              "id": "pass-botpress",
+              "name": "botpress_user_id",
+              "value": "={{ $('Code Parse JSON').item.json.botpress_user_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ca06cbc7-89dd-4bdd-a3f0-33f679be35f9",
+      "name": "Set Meteo",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1088, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer VOTRE_CLE_GROQ_ICI"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Tu es RihlaBot, expert en tourisme marocain depuis 15 ans. Tu connais : prix en DH 2025, riads, CTM/Supratours/grand taxi, souks, tajine, harira, couscous, Ramadan, fêtes nationales.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Génère un itinéraire pour : {{ $json.destination }}, départ {{ $json.dates }}, {{ $json.nb_nuits }} de séjour, budget {{ $json.budget_dh }}, {{ $json.voyageurs }}, style {{ $json.style }}.\\n\\nMétéo prévue : {{ $json.meteo_final }}\\n\\nFormat OBLIGATOIRE pour chaque jour :\\nJour X — [Titre thématique]\\n🌅 Matin : activité (~XX DH)\\n☀️ Après-midi : activité (~XX DH)\\n🌙 Soir : restaurant (~XX DH/pers)\\n💡 Conseil : 1 astuce culturelle locale\\n\\nPrix en DH uniquement. Maximum 5 jours.\\nCommence par 'Marhaba ! 🌟'\\nRéponds en {{ $json.langue }}.\"\n    }\n  ],\n  \"temperature\": 0.7,\n  \"max_tokens\": 1500\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "8857d070-a546-4a9e-a400-408141f21e1b",
+      "name": "OpenAI Itinerary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1312, 0]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "VOTRE_URL_GOOGLE_SHEET_ICI",
+          "mode": "url"
+        },
+        "sheetName": {
+          "mode": "name",
+          "value": "RihlaBot_Demandes"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date_demande": "=={{ $now.toISO() }}",
+            "destination": "=={{ $('Set Meteo').item.json.destination }}",
+            "dates": "=={{ $('Set Meteo').item.json.dates }}",
+            "style": "=={{ $('Set Meteo').item.json.style }}",
+            "voyageurs": "=={{ $('Set Meteo').item.json.voyageurs }}",
+            "nb_nuits": "=={{ $('Set Meteo').item.json.nb_nuits }}",
+            "budget_dh": "=={{ $('Set Meteo').item.json.budget_dh }}",
+            "trip_type": "=={{ $('Set Meteo').item.json.trip_type }}",
+            "meteo_final": "=={{ $('Set Meteo').item.json.meteo_final }}",
+            "itinerary_text": "=={{ $('OpenAI Itinerary').item.json.choices[0].message.content }}",
+            "botpress_user_id": "=={{ $('Set Meteo').item.json.botpress_user_id }}"
+          },
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "id": "df9a4413-7ec4-40d2-9cef-db06701670f2",
+      "name": "Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1536, 0]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "set-itinerary",
+              "name": "itinerary_text",
+              "value": "={{ (() => {\n  try {\n    return $('OpenAI Itinerary').item.json.choices[0].message.content;\n  } catch(e) {\n    return 'Itinéraire non disponible. Veuillez réessayer.';\n  }\n})() }}",
+              "type": "string"
+            },
+            {
+              "id": "set-meteo-final",
+              "name": "meteo_summary",
+              "value": "={{ $('Set Meteo').item.json.meteo_final }}",
+              "type": "string"
+            },
+            {
+              "id": "set-status",
+              "name": "statut",
+              "value": "ok",
+              "type": "string"
+            },
+            {
+              "id": "set-user-id",
+              "name": "botpress_user_id",
+              "value": "={{ $('Set Meteo').item.json.botpress_user_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e04711cc-bbac-4da6-acb5-a1a2edda7817",
+      "name": "Prepare Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1744, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"itinerary\": {{ JSON.stringify($json.itinerary_text) }},\n  \"meteo\": {{ JSON.stringify($json.meteo_summary) }},\n  \"statut\": \"ok\",\n  \"botpress_user_id\": {{ JSON.stringify($json.botpress_user_id) }}\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "0b0e3ed0-d553-41d4-84b0-df0d6d93226a",
+      "name": "Send to Botpress",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1968, 0]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Set Input", "type": "main", "index": 0}]]
+    },
+    "Set Input": {
+      "main": [[{"node": "OpenAI Parsing", "type": "main", "index": 0}]]
+    },
+    "OpenAI Parsing": {
+      "main": [[{"node": "Code Parse JSON", "type": "main", "index": 0}]]
+    },
+    "Code Parse JSON": {
+      "main": [[{"node": "Weather API", "type": "main", "index": 0}]]
+    },
+    "Weather API": {
+      "main": [[{"node": "Set Meteo", "type": "main", "index": 0}]]
+    },
+    "Set Meteo": {
+      "main": [[{"node": "OpenAI Itinerary", "type": "main", "index": 0}]]
+    },
+    "OpenAI Itinerary": {
+      "main": [[{"node": "Google Sheets", "type": "main", "index": 0}]]
+    },
+    "Google Sheets": {
+      "main": [[{"node": "Prepare Response", "type": "main", "index": 0}]]
+    },
+    "Prepare Response": {
+      "main": [[{"node": "Send to Botpress", "type": "main", "index": 0}]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}
