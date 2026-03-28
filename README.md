@@ -3,8 +3,8 @@
 
 > *"Planifier un voyage au Maroc prend des heures. RihlaBot le fait en 30 secondes."*
 
-**Projet IA — Licence MSDI — FST Mohammedia — Prof. Youssef FAKIR**  
-**Binôme : Camelea ARIRI & Maha EL OUADGHIRI**
+**Projet IA — Licence MSDI — FST Mohammedia — **  
+**Réalisé par : Camelea ARIRI **
 
 ---
 
